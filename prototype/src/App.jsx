@@ -226,15 +226,15 @@ export default function App() {
     toast("Comment posted");
   }
 
-  function copyToPlan(post, tripName = tripId, customTime = "15:30") {
+  function copyToPlan(post, tripName = tripId, customTime = "15:30", targetDay) {
     const tripObj = trips.find((t) => t.id === tripName);
-    const firstDay = tripObj.days[0];
+    const chosenDay = targetDay && tripObj.days.includes(targetDay) ? targetDay : tripObj.days[0];
     setPlan((prev) => ({
       ...prev,
       [tripName]: {
         ...prev[tripName],
-        [firstDay]: sortStopsByTime([
-          ...(prev[tripName][firstDay] || []),
+        [chosenDay]: sortStopsByTime([
+          ...(prev[tripName][chosenDay] || []),
           {
             id: crypto.randomUUID(),
             time: customTime,
@@ -247,7 +247,7 @@ export default function App() {
       },
     }));
     setCopyTarget(null);
-    toast(`Copied into ${tripObj.name} · slotted by time`);
+    toast(`Copied into ${tripObj.name} · ${chosenDay} · slotted by time`);
   }
 
   function pinPostToMap(post) {
@@ -1798,11 +1798,20 @@ function PostSheet({ post, comment, setComment, onClose, onComment, onCopy, onPi
 
 function CopySheet({ post, trips, onClose, onCopy }) {
   const [tripName, setTripName] = useState(trips[0].id);
+  const selectedTrip = trips.find((t) => t.id === tripName) || trips[0];
+  const [day, setDay] = useState(selectedTrip.days[0]);
   const [time, setTime] = useState("15:30");
+
+  // When the trip changes, reset the day to that trip's first day so the
+  // picker never points at a day that doesn't belong to the selected trip.
+  useEffect(() => {
+    setDay(selectedTrip.days[0]);
+  }, [tripName]);
+
   return (
     <div className="sheet">
       <h3>Copy to my plan</h3>
-      <p className="muted">{post.place} will land in the plan queue. You can still change the time.</p>
+      <p className="muted">{post.place} will land in the plan queue. Pick the day and time — it slots in by time.</p>
       <label className="field">
         <span>Trip name</span>
         <select className="select" value={tripName} onChange={(e) => setTripName(e.target.value)}>
@@ -1814,10 +1823,20 @@ function CopySheet({ post, trips, onClose, onCopy }) {
         </select>
       </label>
       <label className="field">
+        <span>Day</span>
+        <select className="select" value={day} onChange={(e) => setDay(e.target.value)}>
+          {selectedTrip.days.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
         <span>Time in queue</span>
         <input value={time} onChange={(e) => setTime(e.target.value)} />
       </label>
-      <button className="btn wide" onClick={() => onCopy(post, tripName, time)}>
+      <button className="btn wide" onClick={() => onCopy(post, tripName, time, day)}>
         Paste into plan queue
       </button>
       <button className="btn ghost wide" onClick={onClose}>
