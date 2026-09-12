@@ -10,6 +10,7 @@ JIGo is an AI-powered travel companion that covers the *entire* journey in one p
 
 - [The problem](#the-problem)
 - [Our solution](#our-solution)
+- [How JIGo answers the brief](#how-jigo-answers-the-brief)
 - [Repository layout](#repository-layout)
 - [Getting started](#getting-started)
 - [Global UI layout](#global-ui-layout)
@@ -38,6 +39,27 @@ Travellers today juggle a social app for inspiration, a maps app for navigation,
 ## Our solution
 
 A comprehensive, intelligent, all-inclusive AI travel planner that brings these stages together. Content discovered in the feed copies straight into an itinerary; itinerary stops open in the map; the map's saved pins are searchable while planning; the group chat, budget, and shared albums all live against the same trip; and an AI agent can draft, replan, and split across every one of these surfaces.
+
+---
+
+## How JIGo answers the brief
+
+The **Lifestyle Track — Planning an Escape** brief asks for one product that plans a trip end to end: budgeting, itinerary building, syncing a group's preferences, and adjusting when plans change — working for solo and group travel alike. Here is how each requirement maps to JIGo, and its status in this repo.
+
+| Brief requirement | Where it lives in JIGo | Status in prototype |
+|---|---|---|
+| **Budgeting** | Trip → Budget: per-person *ideal vs. actual*, group rollup | ✅ Working |
+| **Building an itinerary** | Trip → Plan; copy-from-feed; add-from-map | ✅ Working |
+| **Split costs** | Trip → Budget → Add expense (equal or by shares) | ✅ Working |
+| **Solo *and* group travel** | Separate solo and group trips in the same account | ✅ Working |
+| **Sync group preferences** | AI assistant reconciles members into a shared plan spine | 🟡 Demonstrated (scripted response; no preference-input UI yet) |
+| **Re-plan on the fly** (e.g. flight delay) | Delay notification → AI rewrites the affected day | 🟡 Demonstrated (scripted flight-delay scenario) |
+| **AI itineraries from budget + interests** | AI assistant drafts day plans | 🟡 Demonstrated (scripted replies; not yet generative) |
+| **Live pricing & availability (maps / booking APIs)** | Google Maps view; planned booking + pricing integration | 🔴 Planned (map is display-only; no bookings/flights/stays) |
+
+**Legend:** ✅ working end to end in the prototype · 🟡 present as a scripted/demo flow to show intent · 🔴 not yet built (see [Roadmap](#roadmap)).
+
+> Honesty note for reviewers: the prototype is a **client-only, seeded demo**. The four ✅ rows are fully interactive. The 🟡 rows use scripted data to illustrate the intended AI behaviour rather than a live model. Flights, stays, and live pricing/availability are not implemented yet.
 
 ---
 
@@ -204,10 +226,15 @@ A conversational agent available anywhere via the draggable top-right FAB. It wo
 
 ## Roadmap
 
+Ordered to close the gaps against the brief first:
+
+- [ ] **Live pricing & availability** via maps/booking APIs — flights, stays, and activities surfaced inside the planner. *(brief requirement, not yet started)*
+- [ ] **Generative AI itineraries** from real budget + interests, writing directly into the plan. *(currently scripted)*
+- [ ] **Group preference sync** — a real input flow that reconciles members into a shared itinerary. *(currently scripted)*
+- [ ] **On-the-fly re-planning** driven by live disruption data instead of a fixed scenario. *(currently scripted)*
 - [ ] Real backend: accounts, persistence, and sync across surfaces.
 - [ ] Live Google Maps directions, POI tags, and offline map packs.
 - [ ] Background, low-power GPS footprint recording across multi-day trips.
-- [ ] Production AI itinerary generation, replanning, and group-taste reconciliation.
 - [ ] Migrate the validated prototype flow into `app/`.
 
 ## Glossary
