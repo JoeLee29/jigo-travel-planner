@@ -55,6 +55,21 @@ function money(n) {
   return `USD ${n.toLocaleString()}`;
 }
 
+// Normalize a stored time string (e.g. "8:30", "08:30") to the HH:MM value
+// that <input type="time"> expects. Falls back to empty if unparseable.
+function toTimeValue(time) {
+  if (!time) return "";
+  const match = String(time).match(/(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hh = String(Math.min(23, Number(match[1]))).padStart(2, "0");
+  return `${hh}:${match[2]}`;
+}
+
+// Keep whatever the input gives us (already HH:MM), guarding empty edits.
+function fromTimeValue(value) {
+  return value || "00:00";
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(false);
   const [tab, setTab] = useState("feed");
@@ -254,6 +269,43 @@ export default function App() {
       all.map((p) => (p.id === pinId ? { ...p, customLabel: labelDraft } : p))
     );
     toast("Personal label saved");
+  }
+
+  function reorderStop(fromIndex, toIndex) {
+    setPlan((prev) => {
+      const list = [...(prev[tripId]?.[day] || [])];
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= list.length ||
+        toIndex >= list.length ||
+        fromIndex === toIndex
+      ) {
+        return prev;
+      }
+      const [moved] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, moved);
+      return {
+        ...prev,
+        [tripId]: { ...prev[tripId], [day]: list },
+      };
+    });
+  }
+
+  function moveStop(index, dir) {
+    reorderStop(index, index + dir);
+  }
+
+  function editStopTime(stopId, time) {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: (prev[tripId]?.[day] || []).map((item) =>
+          item.id === stopId ? { ...item, time } : item
+        ),
+      },
+    }));
   }
 
   function addMessage(entry, targetTrip = tripId) {
@@ -683,6 +735,9 @@ export default function App() {
                       onSend={sendChat}
                       onAlbum={createAlbum}
                       onSplit={openExpense}
+                      onReorderStop={reorderStop}
+                      onMoveStop={moveStop}
+                      onEditStopTime={editStopTime}
                       onMapItem={(pinId) => {
                         setTab("map");
                         setSelectedPin(pinId);
@@ -1249,9 +1304,14 @@ function TripScreen({
   onSend,
   onAlbum,
   onSplit,
+  onReorderStop,
+  onMoveStop,
+  onEditStopTime,
   onMapItem,
 }) {
   const [attachOpen, setAttachOpen] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
   return (
     <div className={`screen ${tripTab === "chat" ? "chat-mode" : ""}`}>
       <div className="trip-head">
@@ -1292,10 +1352,70 @@ function TripScreen({
               </button>
             ))}
           </div>
+          {dayPlan.length > 1 && (
+            <p className="muted" style={{ margin: "0 0 8px" }}>
+              Drag the ⠿ handle to reorder, or tap the arrows. Edit any time inline.
+            </p>
+          )}
           <div className="timeline">
-            {dayPlan.map((item) => (
-              <div className="t-item" key={item.id}>
-                <div className="muted">{item.time}</div>
+            {dayPlan.map((item, index) => (
+              <div
+                className={`t-item editable${dragIndex === index ? " dragging" : ""}${
+                  overIndex === index && dragIndex !== null && dragIndex !== index ? " drop-target" : ""
+                }`}
+                key={item.id}
+                draggable
+                onDragStart={(e) => {
+                  setDragIndex(index);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (overIndex !== index) setOverIndex(index);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIndex !== null) onReorderStop(dragIndex, index);
+                  setDragIndex(null);
+                  setOverIndex(null);
+                }}
+                onDragEnd={() => {
+                  setDragIndex(null);
+                  setOverIndex(null);
+                }}
+              >
+                <div className="t-item-head">
+                  <span className="drag-handle" aria-label="Drag to reorder" title="Drag to reorder">
+                    ⠿
+                  </span>
+                  <input
+                    className="time-input"
+                    type="time"
+                    value={toTimeValue(item.time)}
+                    onChange={(e) => onEditStopTime(item.id, fromTimeValue(e.target.value))}
+                    aria-label={`Time for ${item.title}`}
+                  />
+                  <div className="stop-order">
+                    <button
+                      className="order-btn"
+                      onClick={() => onMoveStop(index, -1)}
+                      disabled={index === 0}
+                      aria-label="Move stop up"
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="order-btn"
+                      onClick={() => onMoveStop(index, 1)}
+                      disabled={index === dayPlan.length - 1}
+                      aria-label="Move stop down"
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
                 <b>{item.title}</b>
                 <div className="muted">
                   ★ {item.rating} · {item.note}
