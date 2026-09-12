@@ -70,6 +70,20 @@ function fromTimeValue(value) {
   return value || "00:00";
 }
 
+// Convert a stored time string to minutes-since-midnight for sorting.
+// Unparseable/empty times sort to the end of the day.
+function timeToMinutes(time) {
+  const v = toTimeValue(time);
+  if (!v) return Number.MAX_SAFE_INTEGER;
+  const [h, m] = v.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Return a copy of a stop list sorted chronologically by time.
+function sortStopsByTime(list) {
+  return [...list].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(false);
   const [tab, setTab] = useState("feed");
@@ -219,7 +233,7 @@ export default function App() {
       ...prev,
       [tripName]: {
         ...prev[tripName],
-        [firstDay]: [
+        [firstDay]: sortStopsByTime([
           ...(prev[tripName][firstDay] || []),
           {
             id: crypto.randomUUID(),
@@ -229,11 +243,11 @@ export default function App() {
             rating: 4.6,
             note: post.text.slice(0, 42),
           },
-        ],
+        ]),
       },
     }));
     setCopyTarget(null);
-    toast(`Copied into ${tripObj.name}`);
+    toast(`Copied into ${tripObj.name} · slotted by time`);
   }
 
   function pinPostToMap(post) {
@@ -248,7 +262,7 @@ export default function App() {
       ...prev,
       [tripId]: {
         ...prev[tripId],
-        [day]: [
+        [day]: sortStopsByTime([
           ...(prev[tripId][day] || []),
           {
             id: crypto.randomUUID(),
@@ -258,10 +272,10 @@ export default function App() {
             rating: pin.rating,
             note: "Added from map",
           },
-        ],
+        ]),
       },
     }));
-    toast("Stop added to the plan queue");
+    toast("Stop added · slotted by time");
   }
 
   function saveLabel(pinId) {
@@ -283,17 +297,64 @@ export default function App() {
       ) {
         return prev;
       }
+      // Time slots stay anchored to their row positions: keep the ascending
+      // list of times, move the stop content, then reassign times by position.
+      const times = list.map((item) => item.time).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
       const [moved] = list.splice(fromIndex, 1);
       list.splice(toIndex, 0, moved);
+      const next = list.map((item, i) => ({ ...item, time: times[i] }));
       return {
         ...prev,
-        [tripId]: { ...prev[tripId], [day]: list },
+        [tripId]: { ...prev[tripId], [day]: next },
       };
     });
   }
 
   function moveStop(index, dir) {
     reorderStop(index, index + dir);
+  }
+
+  function sortDay() {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: sortStopsByTime(prev[tripId]?.[day] || []),
+      },
+    }));
+    toast("Schedule sorted by time");
+  }
+
+  function deleteStop(stopId) {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: (prev[tripId]?.[day] || []).filter((item) => item.id !== stopId),
+      },
+    }));
+    toast("Stop removed from the plan");
+  }
+
+  function addVenueStop(venue, customTime = "12:00") {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: sortStopsByTime([
+          ...(prev[tripId]?.[day] || []),
+          {
+            id: crypto.randomUUID(),
+            time: customTime,
+            title: venue.name,
+            pinId: venue.id,
+            rating: venue.rating,
+            note: venue.note || "Added from venue list",
+          },
+        ]),
+      },
+    }));
+    toast(`${venue.name} added to ${day}`);
   }
 
   function editStopTime(stopId, time) {
@@ -738,6 +799,9 @@ export default function App() {
                       onReorderStop={reorderStop}
                       onMoveStop={moveStop}
                       onEditStopTime={editStopTime}
+                      onSortDay={sortDay}
+                      onDeleteStop={deleteStop}
+                      onAddVenueStop={addVenueStop}
                       onMapItem={(pinId) => {
                         setTab("map");
                         setSelectedPin(pinId);
@@ -1307,6 +1371,9 @@ function TripScreen({
   onReorderStop,
   onMoveStop,
   onEditStopTime,
+  onSortDay,
+  onDeleteStop,
+  onAddVenueStop,
   onMapItem,
 }) {
   const [attachOpen, setAttachOpen] = useState(false);
@@ -1353,9 +1420,14 @@ function TripScreen({
             ))}
           </div>
           {dayPlan.length > 1 && (
-            <p className="muted" style={{ margin: "0 0 8px" }}>
-              Drag the ⠿ handle to reorder, or tap the arrows. Edit any time inline.
-            </p>
+            <div className="plan-toolbar">
+              <p className="muted" style={{ margin: 0 }}>
+                Drag the ⠿ handle to reorder, or tap the arrows. Edit any time inline.
+              </p>
+              <button className="mini" onClick={onSortDay}>
+                Auto-arrange by time
+              </button>
+            </div>
           )}
           <div className="timeline">
             {dayPlan.map((item, index) => (
@@ -1414,6 +1486,14 @@ function TripScreen({
                     >
                       ↓
                     </button>
+                    <button
+                      className="order-btn delete"
+                      onClick={() => onDeleteStop(item.id)}
+                      aria-label={`Delete ${item.title}`}
+                      title="Delete stop"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
                 <b>{item.title}</b>
@@ -1427,9 +1507,14 @@ function TripScreen({
                 )}
               </div>
             ))}
-            {dayPlan.length === 0 && <p className="muted">Empty queue. Copy a post or add a stop from the map.</p>}
+            {dayPlan.length === 0 && (
+              <p className="muted">Empty queue. Copy a post, add a stop from the map, or tap “+ Stop” on a venue below.</p>
+            )}
           </div>
           <h4 style={{ margin: "18px 0 8px" }}>Venue list · sorted by likes</h4>
+          <p className="muted" style={{ margin: "0 0 8px" }}>
+            Tap “+ Stop” to drop a venue into {day}. It slots in by time; edit the time inline afterwards.
+          </p>
           {venues.map((v) => (
             <div className="member" key={v.id}>
               <div className="icon-btn" style={{ width: 28, height: 28 }}>
@@ -1441,9 +1526,14 @@ function TripScreen({
                   {v.likes} likes · {v.rating}
                 </div>
               </div>
-              <button className="mini" onClick={() => onMapItem(v.id)}>
-                Map
-              </button>
+              <div className="venue-actions">
+                <button className="mini" onClick={() => onMapItem(v.id)}>
+                  Map
+                </button>
+                <button className="mini add" onClick={() => onAddVenueStop(v)}>
+                  + Stop
+                </button>
+              </div>
             </div>
           ))}
         </>

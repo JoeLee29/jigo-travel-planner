@@ -706,6 +706,19 @@ img {
   display: block;
 }
 
+.plan-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 0 0 8px;
+}
+
+.plan-toolbar .mini {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .t-item.editable {
   transition: box-shadow 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
@@ -772,6 +785,25 @@ img {
 .order-btn:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+.order-btn.delete {
+  color: #c0392b;
+}
+
+.order-btn.delete:hover {
+  background: #fde8e4;
+}
+
+.venue-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.mini.add {
+  background: var(--brand);
+  color: var(--invert);
 }
 
 .budget-hero {
