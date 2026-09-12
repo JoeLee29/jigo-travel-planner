@@ -196,6 +196,16 @@ A conversational agent available anywhere via the draggable top-right FAB. It wo
 - **Split** a bill and record it against the trip budget.
 - Seeds the feed with tailored **attraction recommendations** (see [Feature 1](#feature-1--discover-social--content-hub)).
 
+### Disruption alerts (AI-managed)
+
+A dismissible alert banner sits at the top of the app to flag **sudden changes** that affect the trip. The prototype ships a single hardcoded example — *"Flight NH812 delayed +2h"* — with a **Replan Day 1** action and an X to dismiss.
+
+In production this banner is **not flight-only**. It is intended to be driven by an AI agent that watches for disruptions across many categories and manages the whole alert lifecycle:
+
+- **Categories:** flight/train delays and cancellations, venue/attraction closures, weather, transit strikes, booking changes, price & availability shifts, and safety advisories.
+- **The agent should:** ingest live signals (booking/flight APIs, maps, weather, and news feeds) → classify each disruption's *type, severity, and which trip/day it hits* → compose the alert copy and icon per category → propose and, on confirm, apply a **targeted re-plan**.
+- **Status:** prototype only. Both the banner and its `applyReplan` action are scripted around the NH812 demo. The dismiss/replan interaction is the intended UX contract for the future agent. *(See [`prototype/src/App.jsx`](prototype/src/App.jsx) — the `flight-alert` block carries an inline `FUTURE WORK` comment.)*
+
 ---
 
 ## Feature 5 — Profile & memories
@@ -231,6 +241,7 @@ Ordered to close the gaps against the brief first:
 - [ ] **Live pricing & availability** via maps/booking APIs — flights, stays, and activities surfaced inside the planner. *(brief requirement, not yet started)*
 - [ ] **Generative AI itineraries** from real budget + interests, writing directly into the plan. *(currently scripted)*
 - [ ] **Group preference sync** — a real input flow that reconciles members into a shared itinerary. *(currently scripted)*
+- [ ] **AI disruption-alert agent** — detect and classify sudden changes across categories (flights, transit, closures, weather, bookings, pricing, safety), then drive the top-of-app alert banner. *(prototype banner is a hardcoded NH812 example)*
 - [ ] **On-the-fly re-planning** driven by live disruption data instead of a fixed scenario. *(currently scripted)*
 - [ ] Real backend: accounts, persistence, and sync across surfaces.
 - [ ] Live Google Maps directions, POI tags, and offline map packs.

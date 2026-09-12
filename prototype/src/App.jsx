@@ -109,6 +109,7 @@ export default function App() {
   const [copyTarget, setCopyTarget] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [popup, setPopup] = useState(false);
+  const [flightAlert, setFlightAlert] = useState(true);
   const [recording, setRecording] = useState(false);
   const [trail, setTrail] = useState([{ lat: 35.658, lng: 139.7016 }]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -723,6 +724,46 @@ export default function App() {
                 <Auth form={authForm} setForm={setAuthForm} onLogin={login} />
               ) : (
                 <>
+                  {/*
+                    PROTOTYPE ALERT — hardcoded to a single flight-delay (NH812) scenario.
+                    In production this banner is NOT flight-only: it should surface any sudden
+                    disruption category (flight/train delays, closures, weather, strikes,
+                    booking cancellations, price/availability changes, safety advisories, etc.).
+
+                    FUTURE WORK — replace this static banner with an AI agent that:
+                      1. Ingests live signals (booking/flight APIs, maps, weather, news feeds).
+                      2. Classifies the disruption's type, severity, and which trip/day it hits.
+                      3. Composes the alert copy + icon per category (this ✈ is just the flight case).
+                      4. Proposes and, on confirm, applies a targeted re-plan (see applyReplan(),
+                         which is likewise scripted for the NH812 demo today).
+                    The dismiss/replan wiring below is the intended UX contract for that agent.
+                  */}
+                  {flightAlert && (
+                    <div className="flight-alert" role="alert">
+                      <span className="flight-alert-icon" aria-hidden="true">✈</span>
+                      <div className="flight-alert-body">
+                        <b>Flight NH812 delayed +2h</b>
+                        <span>Departure now 20:40. Day 1 may need a rewrite.</span>
+                        <button
+                          className="flight-alert-action"
+                          onClick={() => {
+                            applyReplan();
+                            setFlightAlert(false);
+                          }}
+                        >
+                          Replan Day 1
+                        </button>
+                      </div>
+                      <button
+                        className="flight-alert-close"
+                        onClick={() => setFlightAlert(false)}
+                        aria-label="Dismiss flight alert"
+                        title="Dismiss"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   {tab === "feed" && (
                     <Feed
                       posts={posts}
