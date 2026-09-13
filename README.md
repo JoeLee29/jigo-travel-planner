@@ -1,3 +1,6 @@
+> Note: This version is created when preparing the presentation slides and videos during prototype phase. Some ideas are added into prototype to present our idea visually to judges. More changes will be added later in this branch before we start building the app. (Updated on 13/9/2026)
+
+
 # JIGo — One-Stop AI Travel Planning
 
 > Team **bytechick-tenders** · CodeNection 2026
