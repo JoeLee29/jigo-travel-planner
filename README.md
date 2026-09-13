@@ -1,3 +1,6 @@
+> Note: This version is the results of our team's first discussion. We finalised our ideas but they are not fully implemented on our prototype, and we will gradually complete them during the building phase.
+
+
 # JIGo — One-Stop AI Travel Planning
 
 > Team **bytechick-tenders** · CodeNection 2026
