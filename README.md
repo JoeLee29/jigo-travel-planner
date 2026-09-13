@@ -23,6 +23,7 @@ JIGo is an AI-powered travel companion that covers the *entire* journey in one p
 - [Design language](#design-language)
 - [Roadmap](#roadmap)
 - [Glossary](#glossary)
+- [Links](#links)
 
 ---
 
@@ -322,3 +323,11 @@ Ordered to close the gaps against the brief first:
 | **Quick Radar** | Map overlay for nearby toilets, ATMs, money changers, clinics, and stores |
 | **Footprint** | A recorded GPS route with distance and calories, tied to a trip |
 | **Trail** | The live path captured while the footprint recorder is running |
+
+---
+
+## Links
+
+### Prototype Phase
+- 🎨 **Slides:** https://canva.link/ja7qxyg236l6jpf
+- 🎬 **Video:** https://youtu.be/qofHn9cc_Cs?si=wHoadWXmYeu1tytL
