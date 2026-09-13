@@ -40,6 +40,69 @@ Travellers today juggle a social app for inspiration, a maps app for navigation,
 
 A comprehensive, intelligent, all-inclusive AI travel planner that brings these stages together. Content discovered in the feed copies straight into an itinerary; itinerary stops open in the map; the map's saved pins are searchable while planning; the group chat, budget, and shared albums all live against the same trip; and an AI agent can draft, replan, and split across every one of these surfaces.
 
+### Five apps into one
+
+```mermaid
+flowchart LR
+    subgraph Before["😩 Today: 5 apps + a group chat"]
+        A1[Social app<br/>inspiration]
+        A2[Maps app<br/>navigation]
+        A3[Spreadsheet<br/>budget]
+        A4[Chat app<br/>group]
+        A5[Photo library<br/>memories]
+    end
+    Before --> JIGo(("🐦 JIGo"))
+    JIGo --> After["✅ One place:<br/>discover · plan · navigate ·<br/>split · coordinate · remember"]
+```
+
+### App at a glance
+
+```mermaid
+mindmap
+  root((JIGo App))
+    Discover
+      Feed / posts
+      Copy to my plan
+      AI recommendations
+    Map
+      Pins & filters
+      Quick Radar
+      Footprint trail
+      Offline pack
+    Create ("+")
+      Add post
+      Create trip
+      Add expense
+    Trip
+      Plan
+      Budget & split
+      Chat
+    Me
+      Albums
+      Friends
+      Preferences
+    Floating
+      AI Assistant (top-right)
+      Chat head (bottom-right)
+```
+
+### How the features feed each other
+
+The real differentiator is that content flows *between* features rather than sitting in silos.
+
+```mermaid
+flowchart TD
+    Feed["Discover post"] -->|Copy to my plan| Plan["Trip → Plan (day timeline)"]
+    Map["Map pin / venue"] -->|Add stop| Plan
+    Plan -->|View map| Map
+    Plan -->|Add expense| Budget["Trip → Budget (live actuals)"]
+    Map -->|Share to partner| Chat["Trip → Chat"]
+    Budget -->|Split bill| Chat
+    Plan --> Memories["Profile → Albums & footprints"]
+    AI(("AI Assistant")) -.->|draft / replan / split| Plan
+    AI -.-> Budget
+```
+
 ---
 
 ## How JIGo answers the brief
@@ -196,6 +259,16 @@ A conversational agent available anywhere via the draggable top-right FAB. It wo
 - **Split** a bill and record it against the trip budget.
 - Seeds the feed with tailored **attraction recommendations** (see [Feature 1](#feature-1--discover-social--content-hub)).
 
+### Disruption alerts (AI-managed)
+
+A dismissible alert banner sits at the top of the app to flag **sudden changes** that affect the trip. The prototype ships a single hardcoded example — *"Flight NH812 delayed +2h"* — with a **Replan Day 1** action and an X to dismiss.
+
+In production this banner is **not flight-only**. It is intended to be driven by an AI agent that watches for disruptions across many categories and manages the whole alert lifecycle:
+
+- **Categories:** flight/train delays and cancellations, venue/attraction closures, weather, transit strikes, booking changes, price & availability shifts, and safety advisories.
+- **The agent should:** ingest live signals (booking/flight APIs, maps, weather, and news feeds) → classify each disruption's *type, severity, and which trip/day it hits* → compose the alert copy and icon per category → propose and, on confirm, apply a **targeted re-plan**.
+- **Status:** prototype only. Both the banner and its `applyReplan` action are scripted around the NH812 demo. The dismiss/replan interaction is the intended UX contract for the future agent. *(See [`prototype/src/App.jsx`](prototype/src/App.jsx) — the `flight-alert` block carries an inline `FUTURE WORK` comment.)*
+
 ---
 
 ## Feature 5 — Profile & memories
@@ -231,6 +304,7 @@ Ordered to close the gaps against the brief first:
 - [ ] **Live pricing & availability** via maps/booking APIs — flights, stays, and activities surfaced inside the planner. *(brief requirement, not yet started)*
 - [ ] **Generative AI itineraries** from real budget + interests, writing directly into the plan. *(currently scripted)*
 - [ ] **Group preference sync** — a real input flow that reconciles members into a shared itinerary. *(currently scripted)*
+- [ ] **AI disruption-alert agent** — detect and classify sudden changes across categories (flights, transit, closures, weather, bookings, pricing, safety), then drive the top-of-app alert banner. *(prototype banner is a hardcoded NH812 example)*
 - [ ] **On-the-fly re-planning** driven by live disruption data instead of a fixed scenario. *(currently scripted)*
 - [ ] Real backend: accounts, persistence, and sync across surfaces.
 - [ ] Live Google Maps directions, POI tags, and offline map packs.

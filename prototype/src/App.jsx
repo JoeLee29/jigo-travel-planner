@@ -55,6 +55,35 @@ function money(n) {
   return `USD ${n.toLocaleString()}`;
 }
 
+// Normalize a stored time string (e.g. "8:30", "08:30") to the HH:MM value
+// that <input type="time"> expects. Falls back to empty if unparseable.
+function toTimeValue(time) {
+  if (!time) return "";
+  const match = String(time).match(/(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hh = String(Math.min(23, Number(match[1]))).padStart(2, "0");
+  return `${hh}:${match[2]}`;
+}
+
+// Keep whatever the input gives us (already HH:MM), guarding empty edits.
+function fromTimeValue(value) {
+  return value || "00:00";
+}
+
+// Convert a stored time string to minutes-since-midnight for sorting.
+// Unparseable/empty times sort to the end of the day.
+function timeToMinutes(time) {
+  const v = toTimeValue(time);
+  if (!v) return Number.MAX_SAFE_INTEGER;
+  const [h, m] = v.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Return a copy of a stop list sorted chronologically by time.
+function sortStopsByTime(list) {
+  return [...list].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(false);
   const [tab, setTab] = useState("feed");
@@ -80,6 +109,7 @@ export default function App() {
   const [copyTarget, setCopyTarget] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [popup, setPopup] = useState(false);
+  const [flightAlert, setFlightAlert] = useState(true);
   const [recording, setRecording] = useState(false);
   const [trail, setTrail] = useState([{ lat: 35.658, lng: 139.7016 }]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -197,15 +227,15 @@ export default function App() {
     toast("Comment posted");
   }
 
-  function copyToPlan(post, tripName = tripId, customTime = "15:30") {
+  function copyToPlan(post, tripName = tripId, customTime = "15:30", targetDay) {
     const tripObj = trips.find((t) => t.id === tripName);
-    const firstDay = tripObj.days[0];
+    const chosenDay = targetDay && tripObj.days.includes(targetDay) ? targetDay : tripObj.days[0];
     setPlan((prev) => ({
       ...prev,
       [tripName]: {
         ...prev[tripName],
-        [firstDay]: [
-          ...(prev[tripName][firstDay] || []),
+        [chosenDay]: sortStopsByTime([
+          ...(prev[tripName][chosenDay] || []),
           {
             id: crypto.randomUUID(),
             time: customTime,
@@ -214,11 +244,11 @@ export default function App() {
             rating: 4.6,
             note: post.text.slice(0, 42),
           },
-        ],
+        ]),
       },
     }));
     setCopyTarget(null);
-    toast(`Copied into ${tripObj.name}`);
+    toast(`Copied into ${tripObj.name} · ${chosenDay} · slotted by time`);
   }
 
   function pinPostToMap(post) {
@@ -233,7 +263,7 @@ export default function App() {
       ...prev,
       [tripId]: {
         ...prev[tripId],
-        [day]: [
+        [day]: sortStopsByTime([
           ...(prev[tripId][day] || []),
           {
             id: crypto.randomUUID(),
@@ -243,10 +273,10 @@ export default function App() {
             rating: pin.rating,
             note: "Added from map",
           },
-        ],
+        ]),
       },
     }));
-    toast("Stop added to the plan queue");
+    toast("Stop added · slotted by time");
   }
 
   function saveLabel(pinId) {
@@ -254,6 +284,90 @@ export default function App() {
       all.map((p) => (p.id === pinId ? { ...p, customLabel: labelDraft } : p))
     );
     toast("Personal label saved");
+  }
+
+  function reorderStop(fromIndex, toIndex) {
+    setPlan((prev) => {
+      const list = [...(prev[tripId]?.[day] || [])];
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= list.length ||
+        toIndex >= list.length ||
+        fromIndex === toIndex
+      ) {
+        return prev;
+      }
+      // Time slots stay anchored to their row positions: keep the ascending
+      // list of times, move the stop content, then reassign times by position.
+      const times = list.map((item) => item.time).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+      const [moved] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, moved);
+      const next = list.map((item, i) => ({ ...item, time: times[i] }));
+      return {
+        ...prev,
+        [tripId]: { ...prev[tripId], [day]: next },
+      };
+    });
+  }
+
+  function moveStop(index, dir) {
+    reorderStop(index, index + dir);
+  }
+
+  function sortDay() {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: sortStopsByTime(prev[tripId]?.[day] || []),
+      },
+    }));
+    toast("Schedule sorted by time");
+  }
+
+  function deleteStop(stopId) {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: (prev[tripId]?.[day] || []).filter((item) => item.id !== stopId),
+      },
+    }));
+    toast("Stop removed from the plan");
+  }
+
+  function addVenueStop(venue, customTime = "12:00") {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: sortStopsByTime([
+          ...(prev[tripId]?.[day] || []),
+          {
+            id: crypto.randomUUID(),
+            time: customTime,
+            title: venue.name,
+            pinId: venue.id,
+            rating: venue.rating,
+            note: venue.note || "Added from venue list",
+          },
+        ]),
+      },
+    }));
+    toast(`${venue.name} added to ${day}`);
+  }
+
+  function editStopTime(stopId, time) {
+    setPlan((prev) => ({
+      ...prev,
+      [tripId]: {
+        ...prev[tripId],
+        [day]: (prev[tripId]?.[day] || []).map((item) =>
+          item.id === stopId ? { ...item, time } : item
+        ),
+      },
+    }));
   }
 
   function addMessage(entry, targetTrip = tripId) {
@@ -610,6 +724,46 @@ export default function App() {
                 <Auth form={authForm} setForm={setAuthForm} onLogin={login} />
               ) : (
                 <>
+                  {/*
+                    PROTOTYPE ALERT — hardcoded to a single flight-delay (NH812) scenario.
+                    In production this banner is NOT flight-only: it should surface any sudden
+                    disruption category (flight/train delays, closures, weather, strikes,
+                    booking cancellations, price/availability changes, safety advisories, etc.).
+
+                    FUTURE WORK — replace this static banner with an AI agent that:
+                      1. Ingests live signals (booking/flight APIs, maps, weather, news feeds).
+                      2. Classifies the disruption's type, severity, and which trip/day it hits.
+                      3. Composes the alert copy + icon per category (this ✈ is just the flight case).
+                      4. Proposes and, on confirm, applies a targeted re-plan (see applyReplan(),
+                         which is likewise scripted for the NH812 demo today).
+                    The dismiss/replan wiring below is the intended UX contract for that agent.
+                  */}
+                  {flightAlert && (
+                    <div className="flight-alert" role="alert">
+                      <span className="flight-alert-icon" aria-hidden="true">✈</span>
+                      <div className="flight-alert-body">
+                        <b>Flight NH812 delayed +2h</b>
+                        <span>Departure now 20:40. Day 1 may need a rewrite.</span>
+                        <button
+                          className="flight-alert-action"
+                          onClick={() => {
+                            applyReplan();
+                            setFlightAlert(false);
+                          }}
+                        >
+                          Replan Day 1
+                        </button>
+                      </div>
+                      <button
+                        className="flight-alert-close"
+                        onClick={() => setFlightAlert(false)}
+                        aria-label="Dismiss flight alert"
+                        title="Dismiss"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   {tab === "feed" && (
                     <Feed
                       posts={posts}
@@ -683,6 +837,12 @@ export default function App() {
                       onSend={sendChat}
                       onAlbum={createAlbum}
                       onSplit={openExpense}
+                      onReorderStop={reorderStop}
+                      onMoveStop={moveStop}
+                      onEditStopTime={editStopTime}
+                      onSortDay={sortDay}
+                      onDeleteStop={deleteStop}
+                      onAddVenueStop={addVenueStop}
                       onMapItem={(pinId) => {
                         setTab("map");
                         setSelectedPin(pinId);
@@ -1249,9 +1409,17 @@ function TripScreen({
   onSend,
   onAlbum,
   onSplit,
+  onReorderStop,
+  onMoveStop,
+  onEditStopTime,
+  onSortDay,
+  onDeleteStop,
+  onAddVenueStop,
   onMapItem,
 }) {
   const [attachOpen, setAttachOpen] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
   return (
     <div className={`screen ${tripTab === "chat" ? "chat-mode" : ""}`}>
       <div className="trip-head">
@@ -1292,10 +1460,83 @@ function TripScreen({
               </button>
             ))}
           </div>
+          {dayPlan.length > 1 && (
+            <div className="plan-toolbar">
+              <p className="muted" style={{ margin: 0 }}>
+                Drag the ⠿ handle to reorder, or tap the arrows. Edit any time inline.
+              </p>
+              <button className="mini" onClick={onSortDay}>
+                Auto-arrange by time
+              </button>
+            </div>
+          )}
           <div className="timeline">
-            {dayPlan.map((item) => (
-              <div className="t-item" key={item.id}>
-                <div className="muted">{item.time}</div>
+            {dayPlan.map((item, index) => (
+              <div
+                className={`t-item editable${dragIndex === index ? " dragging" : ""}${
+                  overIndex === index && dragIndex !== null && dragIndex !== index ? " drop-target" : ""
+                }`}
+                key={item.id}
+                draggable
+                onDragStart={(e) => {
+                  setDragIndex(index);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (overIndex !== index) setOverIndex(index);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIndex !== null) onReorderStop(dragIndex, index);
+                  setDragIndex(null);
+                  setOverIndex(null);
+                }}
+                onDragEnd={() => {
+                  setDragIndex(null);
+                  setOverIndex(null);
+                }}
+              >
+                <div className="t-item-head">
+                  <span className="drag-handle" aria-label="Drag to reorder" title="Drag to reorder">
+                    ⠿
+                  </span>
+                  <input
+                    className="time-input"
+                    type="time"
+                    value={toTimeValue(item.time)}
+                    onChange={(e) => onEditStopTime(item.id, fromTimeValue(e.target.value))}
+                    aria-label={`Time for ${item.title}`}
+                  />
+                  <div className="stop-order">
+                    <button
+                      className="order-btn"
+                      onClick={() => onMoveStop(index, -1)}
+                      disabled={index === 0}
+                      aria-label="Move stop up"
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="order-btn"
+                      onClick={() => onMoveStop(index, 1)}
+                      disabled={index === dayPlan.length - 1}
+                      aria-label="Move stop down"
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className="order-btn delete"
+                      onClick={() => onDeleteStop(item.id)}
+                      aria-label={`Delete ${item.title}`}
+                      title="Delete stop"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
                 <b>{item.title}</b>
                 <div className="muted">
                   ★ {item.rating} · {item.note}
@@ -1307,9 +1548,14 @@ function TripScreen({
                 )}
               </div>
             ))}
-            {dayPlan.length === 0 && <p className="muted">Empty queue. Copy a post or add a stop from the map.</p>}
+            {dayPlan.length === 0 && (
+              <p className="muted">Empty queue. Copy a post, add a stop from the map, or tap “+ Stop” on a venue below.</p>
+            )}
           </div>
           <h4 style={{ margin: "18px 0 8px" }}>Venue list · sorted by likes</h4>
+          <p className="muted" style={{ margin: "0 0 8px" }}>
+            Tap “+ Stop” to drop a venue into {day}. It slots in by time; edit the time inline afterwards.
+          </p>
           {venues.map((v) => (
             <div className="member" key={v.id}>
               <div className="icon-btn" style={{ width: 28, height: 28 }}>
@@ -1321,9 +1567,14 @@ function TripScreen({
                   {v.likes} likes · {v.rating}
                 </div>
               </div>
-              <button className="mini" onClick={() => onMapItem(v.id)}>
-                Map
-              </button>
+              <div className="venue-actions">
+                <button className="mini" onClick={() => onMapItem(v.id)}>
+                  Map
+                </button>
+                <button className="mini add" onClick={() => onAddVenueStop(v)}>
+                  + Stop
+                </button>
+              </div>
             </div>
           ))}
         </>
@@ -1588,11 +1839,20 @@ function PostSheet({ post, comment, setComment, onClose, onComment, onCopy, onPi
 
 function CopySheet({ post, trips, onClose, onCopy }) {
   const [tripName, setTripName] = useState(trips[0].id);
+  const selectedTrip = trips.find((t) => t.id === tripName) || trips[0];
+  const [day, setDay] = useState(selectedTrip.days[0]);
   const [time, setTime] = useState("15:30");
+
+  // When the trip changes, reset the day to that trip's first day so the
+  // picker never points at a day that doesn't belong to the selected trip.
+  useEffect(() => {
+    setDay(selectedTrip.days[0]);
+  }, [tripName]);
+
   return (
     <div className="sheet">
       <h3>Copy to my plan</h3>
-      <p className="muted">{post.place} will land in the plan queue. You can still change the time.</p>
+      <p className="muted">{post.place} will land in the plan queue. Pick the day and time — it slots in by time.</p>
       <label className="field">
         <span>Trip name</span>
         <select className="select" value={tripName} onChange={(e) => setTripName(e.target.value)}>
@@ -1604,10 +1864,20 @@ function CopySheet({ post, trips, onClose, onCopy }) {
         </select>
       </label>
       <label className="field">
+        <span>Day</span>
+        <select className="select" value={day} onChange={(e) => setDay(e.target.value)}>
+          {selectedTrip.days.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
         <span>Time in queue</span>
         <input value={time} onChange={(e) => setTime(e.target.value)} />
       </label>
-      <button className="btn wide" onClick={() => onCopy(post, tripName, time)}>
+      <button className="btn wide" onClick={() => onCopy(post, tripName, time, day)}>
         Paste into plan queue
       </button>
       <button className="btn ghost wide" onClick={onClose}>
