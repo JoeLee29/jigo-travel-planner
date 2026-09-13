@@ -40,6 +40,69 @@ Travellers today juggle a social app for inspiration, a maps app for navigation,
 
 A comprehensive, intelligent, all-inclusive AI travel planner that brings these stages together. Content discovered in the feed copies straight into an itinerary; itinerary stops open in the map; the map's saved pins are searchable while planning; the group chat, budget, and shared albums all live against the same trip; and an AI agent can draft, replan, and split across every one of these surfaces.
 
+### Five apps into one
+
+```mermaid
+flowchart LR
+    subgraph Before["😩 Today: 5 apps + a group chat"]
+        A1[Social app<br/>inspiration]
+        A2[Maps app<br/>navigation]
+        A3[Spreadsheet<br/>budget]
+        A4[Chat app<br/>group]
+        A5[Photo library<br/>memories]
+    end
+    Before --> JIGo(("🐦 JIGo"))
+    JIGo --> After["✅ One place:<br/>discover · plan · navigate ·<br/>split · coordinate · remember"]
+```
+
+### App at a glance
+
+```mermaid
+mindmap
+  root((JIGo App))
+    Discover
+      Feed / posts
+      Copy to my plan
+      AI recommendations
+    Map
+      Pins & filters
+      Quick Radar
+      Footprint trail
+      Offline pack
+    Create ("+")
+      Add post
+      Create trip
+      Add expense
+    Trip
+      Plan
+      Budget & split
+      Chat
+    Me
+      Albums
+      Friends
+      Preferences
+    Floating
+      AI Assistant (top-right)
+      Chat head (bottom-right)
+```
+
+### How the features feed each other
+
+The real differentiator is that content flows *between* features rather than sitting in silos.
+
+```mermaid
+flowchart TD
+    Feed["Discover post"] -->|Copy to my plan| Plan["Trip → Plan (day timeline)"]
+    Map["Map pin / venue"] -->|Add stop| Plan
+    Plan -->|View map| Map
+    Plan -->|Add expense| Budget["Trip → Budget (live actuals)"]
+    Map -->|Share to partner| Chat["Trip → Chat"]
+    Budget -->|Split bill| Chat
+    Plan --> Memories["Profile → Albums & footprints"]
+    AI(("AI Assistant")) -.->|draft / replan / split| Plan
+    AI -.-> Budget
+```
+
 ---
 
 ## How JIGo answers the brief
